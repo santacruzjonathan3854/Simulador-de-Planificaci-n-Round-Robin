@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Round Robin</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; color: #2c3e50; }
+        .control-group {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        label { font-weight: bold; }
+        input[type="text"], input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background-color: #2980b9; }
+        button.btn-danger { background-color: #e74c3c; }
+        button.btn-danger:hover { background-color: #c0392b; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th { background-color: #f8f9fa; }
+        .grid-simulacion {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 5px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .celda-sim {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Simulador de Planificación Round Robin</h2>
+
+    <!-- Controles de Quantum -->
+    <div class="control-group">
+        <label>
+            <input type="checkbox" id="ck_estado" onchange="toggleEstado()"> Personalizar Quantum
+        </label>
+        <label>Quantum:</label>
+        <input type="number" id="txtquantum" value="3" disabled min="1">
+        <input type="range" id="trakbarra" min="1" max="10" value="3" oninput="actualizarSlider()">
+        <span id="lblquantum">3</span>
+    </div>
+
+    <!-- Ingreso de Procesos -->
+    <div class="control-group">
+        <label>Proceso:</label>
+        <input type="text" id="txtproceso" placeholder="Ej. P1">
+        <label>CPU (Ráfaga):</label>
+        <input type="number" id="txtrequerimiento" min="1" placeholder="Ej. 8">
+        <button onclick="agregarProceso()">Agregar Proceso</button>
+        <button class="btn-danger" onclick="reiniciarSimulacion()">Reiniciar</button>
+    </div>
+
+    <!-- Tabla de Procesos -->
+    <h3>Lista de Procesos</h3>
+    <table id="tblprocesos">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>CPU Requerido</th>
+                <th>Color</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Filas dinámicas -->
+        </tbody>
+    </table>
+
+    <button onclick="iniciarSimulacion()" style="background-color: #27ae60; width: 100%; padding: 12px; font-size: 16px;">Iniciar Procesamiento</button>
+
+    <!-- Tablero de Resultados / Planificación -->
+    <h3>Diagrama de Planificación (Gantt)</h3>
+    <div id="tblprocesamiento" class="grid-simulacion">
+        <!-- Celdas de simulación -->
+    </div>
+</div>
+
+<script>
+    const coloresDisponibles = ["red", "blue", "green", "orange", "purple", "brown", "teal", "magenta"];
+    let colorIndex = 0;
+    let timer = null;
+    let d = 0; // índice de proceso actual para Round Robin
+
+    function asignarColor() {
+        let color = coloresDisponibles[colorIndex % coloresDisponibles.length];
+        colorIndex++;
+        return color;
+    }
+
+    function toggleEstado() {
+        const ck = document.getElementById("ck_estado");
+        const txt = document.getElementById("txtquantum");
+        const trak = document.getElementById("trakbarra");
+
+        if (ck.checked) {
+            txt.disabled = false;
+            trak.disabled = true;
+            trak.value = txt.value;
+        } else {
+            txt.disabled = true;
+            trak.disabled = false;
+            txt.value = trak.value;
+        }
+    }
+
+    function actualizarSlider() {
+        const trak = document.getElementById("trakbarra");
+        const txt = document.getElementById("txtquantum");
+        const lbl = document.getElementById("lblquantum");
+        txt.value = trak.value;
+        lbl.innerText = trak.value;
+    }
+
+    function agregarProceso() {
+        const nom = document.getElementById("txtproceso").value.trim();
+        const cpu = document.getElementById("txtrequerimiento").value.trim();
+
+        if (nom === "" || cpu === "") {
+            alert("Debe llenar todos los datos");
+            return;
+        }
+
+        const tabla = document.getElementById("tblprocesos").getElementsByTagName('tbody')[0];
+        const nuevaFila = tabla.insertRow();
+        
+        const color = asignarColor();
+
+        nuevaFila.insertCell(0).innerText = nom;
+        nuevaFila.insertCell(1).innerText = cpu;
+        
+        const celdaColor = nuevaFila.insertCell(2);
+        celdaColor.innerText = color;
+        celdaColor.style.backgroundColor = color;
+        celdaColor.style.color = (color === "yellow" || color === "orange") ? "black" : "white";
+
+        document.getElementById("txtproceso").value = "";
+        document.getElementById("txtrequerimiento").value = "";
+    }
+
+    function iniciarSimulacion() {
+        const tabla = document.getElementById("tblprocesos");
+        if (tabla.rows.length <= 1) {
+            alert("Agregue al menos un proceso para iniciar.");
+            return;
+        }
+        
+        if (timer) clearInterval(timer);
+        document.getElementById("tblprocesamiento").innerHTML = "";
+        d = 0;
+
+        // Iniciar el temporizador equivalente al 'time_Tick' de C#
+        timer = setInterval(procesarPaso, 600); // 600ms por ciclo visual
+    }
+
+    function procesarPaso() {
+        const tbody = document.getElementById("tblprocesos").getElementsByTagName('tbody')[0];
+        const filas = tbody.rows;
+        
+        if (filas.length === 0) {
+            clearInterval(timer);
+            return;
+        }
+
+        // Verificar si quedan procesos pendientes
+        let hayPendientes = false;
+        for (let i = 0; i < filas.length; i++) {
+            if (parseInt(filas[i].cells[1].innerText) > 0) {
+                hayPendientes = true;
+                break;
+            }
+        }
+
+        if (!hayPendientes) {
+            clearInterval(timer);
+            alert("¡Planificación finalizada!");
+            return;
+        }
+
+        // Buscar el siguiente proceso con CPU > 0
+        let intentos = 0;
+        while (intentos < filas.length) {
+            let cpuActual = parseInt(filas[d].cells[1].innerText);
+            if (cpuActual > 0) {
+                break;
+            }
+            d = (d + 1) % filas.length;
+            intentos++;
+        }
+
+        let nombreProceso = filas[d].cells[0].innerText;
+        let cpu = parseInt(filas[d].cells[1].innerText);
+        let color = filas[d].cells[2].innerText;
+        let quantum = parseInt(document.getElementById("txtquantum").value);
+
+        if (cpu > 0) {
+            // Ejecutar 1 unidad de tiempo por tick (permite ver la animación paso a paso de forma fluida)
+            filas[d].cells[1].innerText = cpu - 1;
+
+            // Dibujar celda en el panel de planificación
+            const contenedor = document.getElementById("tblprocesamiento");
+            const celda = document.createElement("div");
+            celda.className = "celda-sim";
+            celda.innerText = nombreProceso;
+            celda.style.backgroundColor = color;
+            celda.style.color = (color === "yellow" || color === "orange") ? "black" : "white";
+            contenedor.appendChild(celda);
+
+            // Reducir el quantum lógico o pasar turno si se cumple
+            // Nota: Esta versión simplifica el tick por unidad para efectos visuales web interactivos
+        }
+
+        d = (d + 1) % filas.length;
+    }
+
+    function reiniciarSimulacion() {
+        if (timer) clearInterval(timer);
+        document.getElementById("tblprocesos").getElementsByTagName('tbody')[0].innerHTML = "";
+        document.getElementById("tblprocesamiento").innerHTML = "";
+        colorIndex = 0;
+        d = 0;
+    }
+</script>
+
+</body>
+</html>
